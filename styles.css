@@ -1,43 +1,73 @@
-/* Doomscroll view */
+/* Bloomscroll view */
 
-.doomscroll-view-container {
+.bloomscroll-view-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+  /* Paint the ground here: a transparent header would otherwise reveal
+     Obsidian's own pane background rather than the feed surface. */
+  background: var(--background-secondary);
 }
 
-.doomscroll-header {
+.bloomscroll-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
   padding-top: calc(1rem + env(safe-area-inset-top));
-  border-bottom: 1px solid var(--divider-color);
+  border: 0;
+  background: transparent;
   flex-shrink: 0;
 }
 
-.doomscroll-title {
+.bloomscroll-title {
   margin: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
   font-size: 1.5rem;
   font-weight: 600;
+  /* The header floats over the feed, so the title carries its own frosted
+     ground to stay legible against whatever card is passing beneath. */
+  background: color-mix(in srgb, var(--background-secondary) 80%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 6px 18px;
+  border-radius: var(--radius-xl);
 }
 
-.doomscroll-controls {
+.bloomscroll-controls {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.doomscroll-refresh-status {
-  flex: 1;
+.bloomscroll-refresh-status {
   align-self: center;
-  margin-left: 1rem;
   color: var(--text-muted);
   font-size: 0.85rem;
 }
 
-.doomscroll-reshuffle-btn,
-.doomscroll-back-btn,
-.doomscroll-settings-btn {
+/* Leading and trailing slots claim equal flex space, so the centre child lands
+   on the header's true midpoint regardless of how wide either side's content
+   is. Without this the title would centre in the leftover gap and drift as the
+   progress text changes width. */
+.bloomscroll-header-slot {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Trailing slot pushes its controls to the right edge. */
+.bloomscroll-controls.bloomscroll-header-slot {
+  justify-content: flex-end;
+}
+
+.bloomscroll-reshuffle-btn,
+.bloomscroll-back-btn,
+.bloomscroll-settings-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,24 +81,24 @@
   transition: background-color 0.2s;
 }
 
-.doomscroll-reshuffle-btn:hover,
-.doomscroll-back-btn:hover:not(:disabled),
-.doomscroll-settings-btn:hover {
+.bloomscroll-reshuffle-btn:hover,
+.bloomscroll-back-btn:hover:not(:disabled),
+.bloomscroll-settings-btn:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.doomscroll-back-btn:disabled {
+.bloomscroll-back-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.doomscroll-icon {
+.bloomscroll-icon {
   width: 1.2rem;
   height: 1.2rem;
   fill: currentColor;
 }
 
-.doomscroll-body {
+.bloomscroll-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -79,7 +109,7 @@
   max-width: calc(var(--file-line-width, 700px) + 2rem);
 }
 
-.doomscroll-card {
+.bloomscroll-card {
   border: 1px solid var(--background-modifier-border);
   border-radius: 0.5rem;
   padding: 1.25rem;
@@ -91,11 +121,11 @@
   word-break: break-word;
 }
 
-.doomscroll-card:hover {
+.bloomscroll-card:hover {
   border-color: var(--text-faint);
 }
 
-.doomscroll-card-titlerow {
+.bloomscroll-card-titlerow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -103,7 +133,7 @@
   margin-bottom: 0.75rem;
 }
 
-.doomscroll-card-title {
+.bloomscroll-card-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
@@ -111,27 +141,27 @@
   overflow-wrap: break-word;
 }
 
-.doomscroll-card-date {
+.bloomscroll-card-date {
   color: var(--text-muted);
   font-size: 0.85rem;
   white-space: nowrap;
 }
 
 @media (max-width: 600px) {
-  .doomscroll-card-titlerow {
+  .bloomscroll-card-titlerow {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
   }
 }
 
-.doomscroll-card-image-container {
+.bloomscroll-card-image-container {
   margin-bottom: 1rem;
   overflow: hidden;
   border-radius: 0.375rem;
 }
 
-.doomscroll-card-image {
+.bloomscroll-card-image {
   width: 100%;
   max-height: 240px;
   object-fit: cover;
@@ -139,7 +169,7 @@
   display: block;
 }
 
-.doomscroll-card-snippet {
+.bloomscroll-card-snippet {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.9rem;
@@ -147,56 +177,56 @@
   white-space: pre-line;
 }
 
-.doomscroll-card-snippet-markdown {
+.bloomscroll-card-snippet-markdown {
   white-space: normal;
   max-height: 15em;
   overflow: hidden;
 }
 
-.doomscroll-card-snippet-markdown > :first-child,
-.doomscroll-card-snippet-simple > :first-child {
+.bloomscroll-card-snippet-markdown > :first-child,
+.bloomscroll-card-snippet-simple > :first-child {
   margin-top: 0;
 }
 
-.doomscroll-card-snippet-markdown > :last-child,
-.doomscroll-card-snippet-simple > :last-child {
+.bloomscroll-card-snippet-markdown > :last-child,
+.bloomscroll-card-snippet-simple > :last-child {
   margin-bottom: 0;
 }
 
-.doomscroll-card-snippet-markdown p,
-.doomscroll-card-snippet-markdown ul,
-.doomscroll-card-snippet-markdown ol,
-.doomscroll-card-snippet-markdown blockquote,
-.doomscroll-card-snippet-simple p,
-.doomscroll-card-snippet-simple ul,
-.doomscroll-card-snippet-simple ol,
-.doomscroll-card-snippet-simple blockquote {
+.bloomscroll-card-snippet-markdown p,
+.bloomscroll-card-snippet-markdown ul,
+.bloomscroll-card-snippet-markdown ol,
+.bloomscroll-card-snippet-markdown blockquote,
+.bloomscroll-card-snippet-simple p,
+.bloomscroll-card-snippet-simple ul,
+.bloomscroll-card-snippet-simple ol,
+.bloomscroll-card-snippet-simple blockquote {
   margin-top: 0.35rem;
   margin-bottom: 0.35rem;
 }
 
-.doomscroll-preview-link {
+.bloomscroll-preview-link {
   color: var(--link-color);
   text-decoration: underline;
   cursor: inherit;
 }
 
-.doomscroll-preview-table {
+.bloomscroll-preview-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
   white-space: normal;
 }
 
-.doomscroll-preview-table th,
-.doomscroll-preview-table td {
+.bloomscroll-preview-table th,
+.bloomscroll-preview-table td {
   padding: 0.2rem 0.35rem;
   border: 1px solid var(--background-modifier-border);
   text-align: left;
   vertical-align: top;
 }
 
-.doomscroll-preview-code {
+.bloomscroll-preview-code {
   max-width: 100%;
   overflow: hidden;
   white-space: pre-wrap;
@@ -204,60 +234,60 @@
   font-size: 0.82rem;
 }
 
-.doomscroll-simple-preview .doomscroll-simple-heading {
+.bloomscroll-simple-preview .bloomscroll-simple-heading {
   font-weight: 400;
 }
 
-.doomscroll-card-snippet-simple p,
-.doomscroll-card-snippet-simple ul,
-.doomscroll-card-snippet-simple ol,
-.doomscroll-card-snippet-simple blockquote {
+.bloomscroll-card-snippet-simple p,
+.bloomscroll-card-snippet-simple ul,
+.bloomscroll-card-snippet-simple ol,
+.bloomscroll-card-snippet-simple blockquote {
   margin-top: 0.15rem;
   margin-bottom: 0.15rem;
 }
 
-.doomscroll-card-snippet-simple ul,
-.doomscroll-card-snippet-simple ol {
+.bloomscroll-card-snippet-simple ul,
+.bloomscroll-card-snippet-simple ol {
   padding-left: 1.25rem;
 }
 
-.doomscroll-card-snippet-simple .doomscroll-preview-table {
+.bloomscroll-card-snippet-simple .bloomscroll-preview-table {
   font-size: 0.8rem;
   line-height: 1.25;
 }
 
-.doomscroll-card-snippet-simple .doomscroll-preview-table th,
-.doomscroll-card-snippet-simple .doomscroll-preview-table td {
+.bloomscroll-card-snippet-simple .bloomscroll-preview-table th,
+.bloomscroll-card-snippet-simple .bloomscroll-preview-table td {
   padding: 0.1rem 0.25rem;
 }
 
-.doomscroll-card-snippet-simple .doomscroll-preview-code {
+.bloomscroll-card-snippet-simple .bloomscroll-preview-code {
   max-height: 7rem;
   margin: 0.2rem 0;
   line-height: 1.25;
 }
 
-.doomscroll-card-snippet-simple {
+.bloomscroll-card-snippet-simple {
   max-height: 12em;
   overflow: hidden;
   white-space: normal;
 }
 
-.doomscroll-loading {
+.bloomscroll-loading {
   text-align: center;
   padding: 2rem;
   color: var(--text-muted);
 }
 
-.doomscroll-settings-header {
+.bloomscroll-settings-header {
   padding-top: 1rem;
 }
 
-.doomscroll-settings-header .setting-item-control {
+.bloomscroll-settings-header .setting-item-control {
   margin-top: 1rem;
 }
 
-.doomscroll-excluded-folders-list {
+.bloomscroll-excluded-folders-list {
   margin: 0 0 1rem;
   overflow: hidden;
   border: 1px solid var(--background-modifier-border);
@@ -265,7 +295,7 @@
   background: var(--background-secondary);
 }
 
-.doomscroll-excluded-folder-item {
+.bloomscroll-excluded-folder-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -275,22 +305,22 @@
   border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.doomscroll-excluded-folder-item:last-child {
+.bloomscroll-excluded-folder-item:last-child {
   border-bottom: none;
 }
 
-.doomscroll-excluded-folder-remove {
+.bloomscroll-excluded-folder-remove {
   flex-shrink: 0;
 }
 
-.doomscroll-reshuffle-section {
+.bloomscroll-reshuffle-section {
   text-align: center;
   padding: 2rem 0 1rem 0;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom) + 4rem + 1.5rem);
   margin-top: 1rem;
 }
 
-.doomscroll-reshuffle-end-btn {
+.bloomscroll-reshuffle-end-btn {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 500;
@@ -302,6 +332,227 @@
   transition: opacity 0.2s;
 }
 
-.doomscroll-reshuffle-end-btn:hover {
+.bloomscroll-reshuffle-end-btn:hover {
   opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------------------
+   Feed mode — TikTok/Reels style one-card-at-a-time snap scrolling.
+
+   Everything here is scoped to .bloomscroll-feed-mode so the original list
+   layout above stays intact and reachable via the "Feed mode" setting.
+   --------------------------------------------------------------------------- */
+
+/* Feed mode floats the header over the scroll area. In the default flex column
+   the header consumes its own row, so a card can never pass beneath it — it just
+   gets cut off at the body's top edge. */
+.bloomscroll-feed-mode .bloomscroll-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  /* Let scrolls and swipes through to the feed underneath; the controls
+     themselves opt back in below. */
+  pointer-events: none;
+}
+
+.bloomscroll-feed-mode .bloomscroll-header > * {
+  pointer-events: auto;
+}
+
+.bloomscroll-feed-mode .bloomscroll-body {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  /* Snap alignment is measured against the padding box, so container padding
+     would offset every card. Padding moves onto the card content instead. */
+  padding: 0;
+  max-width: none;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card,
+.bloomscroll-feed-mode .bloomscroll-reshuffle-section {
+  height: 100%;
+  scroll-snap-align: start;
+  /* Without `always`, a fast flick sails past several cards at once. */
+  scroll-snap-stop: always;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  background: var(--background-secondary);
+  border: 0;
+}
+
+/* Paper-sheet card: a fixed-size sheet centred on the surface, with a generated
+   fibrous noise texture rather than an image asset. */
+.bloomscroll-card-inner {
+  max-width: 400px !important;
+  height: 420px !important;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='roughpaper' x='0%25' y='0%25' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.07' result='noise' numOctaves='5' /%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='0.8'%3E%3CfeDistantLight azimuth='65' elevation='78' /%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect x='0' y='0' width='100%25' height='100%25' filter='url(%23roughpaper)' fill='none'/%3E%3C/svg%3E") repeat;
+  background-attachment: local;
+  padding: 28px;
+  border-radius: var(--radius-s);
+  box-shadow: 0 0 0 1px #00000008,
+              0 2px 8px -2px #0000001c,
+              0 6px 24px -6px #00000012;
+}
+
+/* Embossed ink: a light top edge and a dark hairline below lift the text off
+   the paper texture. */
+.bloomscroll-card-inner * {
+  text-shadow: 0 2px #fff, 0 -0.4px #333333d2;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card-inner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card-title {
+  font-size: 1.4rem;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card-image-container {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card-image {
+  max-height: 45vh;
+  object-fit: cover;
+}
+
+/* Fill the leftover space rather than a fixed 15em, and fade the cut-off edge
+   so clipped text reads as intentional. */
+.bloomscroll-feed-mode .bloomscroll-card-snippet {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 1rem;
+}
+
+.bloomscroll-feed-mode .bloomscroll-card-snippet-markdown,
+.bloomscroll-feed-mode .bloomscroll-card-snippet-simple {
+  max-height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* End-of-feed panel becomes a full snap page of its own. */
+.bloomscroll-feed-mode .bloomscroll-reshuffle-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  margin: 0;
+  text-align: center;
+}
+
+.bloomscroll-feed-end-title {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text-normal);
+}
+
+.bloomscroll-feed-end-desc {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Progress counter in the header. */
+.bloomscroll-progress {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-l);
+  color: var(--text-accent);
+  background: hsla(var(--interactive-accent-hsl), 0.15);
+}
+
+/* ---------------------------------------------------------------------------
+   Floating action buttons — the reshuffle and back controls lift out of the
+   header into fixed, thumb-reachable pills over the feed.
+   --------------------------------------------------------------------------- */
+
+button.bloomscroll-reshuffle-btn,
+button.bloomscroll-back-btn,
+button.bloomscroll-bookmark-btn {
+  position: fixed;
+  background: #ffffff8c;
+  backdrop-filter: blur(5px);
+  height: 3.2rem;
+  width: 3.2rem;
+  border: 0;
+  right: auto;
+  border-radius: 10000px;
+  /* The white ring is an inset shadow rather than a border, so it sits inside
+     the 3.2rem box and the centring math stays exact. */
+  box-shadow: 0 0 0 2px #ffffffc4 inset,
+              0 0 0 1px #00000012,
+              0 4px 12px -4px #00000021,
+              0 12px 24px -8px #00000024,
+              0 24px 40px -16px #00000012;
+  z-index: 999;
+  bottom: 110px;
+}
+
+/* Centred trio: each sits half its own width (1.6rem) off the midpoint, then
+   shifts to its slot. Bookmark holds the centre. */
+button.bloomscroll-back-btn {
+  left: 50%;
+  margin-left: calc(-1.6rem - 4rem);
+}
+
+button.bloomscroll-bookmark-btn {
+  left: 50%;
+  margin-left: -1.6rem;
+}
+
+button.bloomscroll-reshuffle-btn {
+  left: 50%;
+  margin-left: calc(-1.6rem + 4rem);
+}
+
+/* Bookmarked state: accent fill so "saved" is legible at a glance. The flat
+   shadow drops the frosted-pill treatment so it reads as pressed, not floating. */
+button.bloomscroll-bookmark-btn.is-bookmarked {
+  background: var(--text-accent);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+
+button.bloomscroll-back-btn:disabled {
+  opacity: 0.2;
+  background: var(--text-faint);
+  box-shadow: none;
+}
+
+button.bloomscroll-reshuffle-btn svg,
+button.bloomscroll-back-btn svg,
+button.bloomscroll-bookmark-btn svg {
+  width: 24px;
+  height: 24px;
 }

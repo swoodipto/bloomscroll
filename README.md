@@ -1,6 +1,6 @@
-# Doomscroll
+# Bloomscroll
 
-**Doomscroll your own notes.**
+**Bloomscroll your own notes.**
 
 I used to be an engineering manager on Instagram Reels. Now I am using the same
 feed format to scroll through my own notes.
@@ -17,12 +17,12 @@ content was great. I just didn't feel like going back to it.
 My vault became write-only.
 
 Social apps are very good at resurfacing content. Personal knowledge management
-tools are not. Doomscroll borrows the science behind the social feed and applies
+tools are not. Bloomscroll borrows the science behind the social feed and applies
 it to your vault, so you are motivated to engage with your notes.
 
 Same scroll. Your content.
 
-<img src="https://github.com/user-attachments/assets/bbb240b2-e7bd-4ee7-af4e-b9f583d74629" height="400px" alt="Doomscroll on mobile" />
+<img src="https://github.com/user-attachments/assets/bbb240b2-e7bd-4ee7-af4e-b9f583d74629" height="400px" alt="Bloomscroll on mobile" />
 
 ## Features
 
@@ -43,12 +43,12 @@ Same scroll. Your content.
 
 1. Clone this repository into your vault's `.obsidian/plugins/` directory:
    ```
-   git clone https://github.com/yaroshevych/doomscroll .obsidian/plugins/doomscroll
+   git clone https://github.com/yaroshevych/doomscroll .obsidian/plugins/bloomscroll
    ```
 
 2. Navigate to the plugin directory and install dependencies:
    ```
-   cd .obsidian/plugins/doomscroll
+   cd .obsidian/plugins/bloomscroll
    npm install
    ```
 

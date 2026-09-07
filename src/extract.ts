@@ -284,7 +284,7 @@ function isMediaWikiEmbed(line: string): boolean {
 }
 
 /**
- * Prepare rendered preview DOM for one of Doomscroll's two display modes.
+ * Prepare rendered preview DOM for one of Bloomscroll's two display modes.
  * MarkdownRenderer remains responsible for understanding Obsidian Markdown;
  * this function only applies the card-specific size and interaction policy.
  */
@@ -312,7 +312,7 @@ export function prepareRenderedPreview(
     const replacement = root.ownerDocument.createElement('span');
     // Do not copy Obsidian's `external-link`/icon classes: they add arrow
     // decorations that are distracting inside a card preview.
-    replacement.className = 'doomscroll-preview-link';
+    replacement.className = 'bloomscroll-preview-link';
     while (anchor.firstChild) replacement.appendChild(anchor.firstChild);
     anchor.replaceWith(replacement);
   });
@@ -341,7 +341,7 @@ export function prepareRenderedPreview(
     // Keep heading content, but remove heading semantics and visual weight.
     root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
       const paragraph = root.ownerDocument.createElement('p');
-      paragraph.className = 'doomscroll-simple-heading';
+      paragraph.className = 'bloomscroll-simple-heading';
       while (heading.firstChild) paragraph.appendChild(heading.firstChild);
       heading.replaceWith(paragraph);
     });
@@ -352,9 +352,9 @@ export function prepareRenderedPreview(
       .querySelectorAll('strong, b, em, i, mark, del, s, u, :not(pre) > code')
       .forEach((element) => unwrap(element));
 
-    root.classList.add('doomscroll-simple-preview');
+    root.classList.add('bloomscroll-simple-preview');
   } else {
-    root.classList.add('doomscroll-markdown-preview');
+    root.classList.add('bloomscroll-markdown-preview');
   }
 
   removeEmptyPreviewElements(root);
@@ -390,14 +390,14 @@ function limitTablesAndCode(
   codeLineLimit: number
 ): void {
   root.querySelectorAll('table').forEach((table) => {
-    table.classList.add('doomscroll-preview-table');
+    table.classList.add('bloomscroll-preview-table');
     Array.from(table.querySelectorAll('tr'))
       .slice(tableRowLimit)
       .forEach((row) => row.remove());
   });
 
   root.querySelectorAll('pre').forEach((pre) => {
-    pre.classList.add('doomscroll-preview-code');
+    pre.classList.add('bloomscroll-preview-code');
     const code = pre.querySelector('code') ?? pre;
     const lines = (code.textContent ?? '').split('\n');
     if (lines.length > codeLineLimit) {

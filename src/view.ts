@@ -2,20 +2,32 @@ import {
   ItemView,
   Component,
   MarkdownRenderer,
+  Notice,
   WorkspaceLeaf,
   TFile,
   setIcon,
 } from 'obsidian';
-import DoomscrollPlugin from './main';
+import BloomscrollPlugin from './main';
 import { preparePreviewMarkdown, prepareRenderedPreview } from './extract';
 import { NotePreview, toNotePreview } from './types';
 import { selectBatch } from './selector';
 import { recordView } from './history';
 
-export const VIEW_TYPE_DOOMSCROLL = 'doomscroll-view';
+export const VIEW_TYPE_BLOOMSCROLL = 'bloomscroll-view';
+// The view type is persisted in the workspace layout. Tabs saved before the
+// Doomscroll -> Bloomscroll rename still carry the old type, so it stays
+// registered and open tabs survive the upgrade.
+export const VIEW_TYPE_LEGACY = 'doomscroll-view';
 const HISTORY_SAVE_DELAY_MS = 2_000;
 const MAX_BATCH_HISTORY = 20;
 const MAX_RENDERED_SNIPPET_CACHE_ENTRIES = 100;
+// Pointer drift above this (px) between down and up is a swipe, not a tap.
+const TAP_SLOP_PX = 10;
+// A card must be mostly on screen before it counts as viewed. In a
+// full-viewport feed the old 0.1 threshold fired while a card was barely
+// peeking in, marking notes read that were never actually looked at.
+const FEED_VIEW_THRESHOLD = 0.6;
+const LIST_VIEW_THRESHOLD = 0.1;
 
 interface AppWithSettings {
   setting: {
@@ -24,15 +36,38 @@ interface AppWithSettings {
   };
 }
 
-interface DoomscrollViewState {
+// The bookmarks plugin is a core *internal* plugin: it is absent from
+// obsidian.d.ts, can be disabled by the user, and its API is not guaranteed
+// stable. Everything below is shape-checked before being called.
+interface BookmarkItem {
+  type: string;
+  path?: string;
+}
+
+interface BookmarksPluginInstance {
+  addItem(item: BookmarkItem): void;
+  removeItem(item: BookmarkItem): void;
+  getBookmarks(): BookmarkItem[];
+}
+
+interface AppWithInternalPlugins {
+  internalPlugins?: {
+    getEnabledPluginById?(id: string): unknown;
+  };
+}
+
+interface BloomscrollViewState {
   batchPaths: string[];
   batchHistoryPaths: string[][];
   batchHistoryCursor: number;
   scrollTop: number;
+  // Feed mode restores by index: a pixel offset is wrong after a resize or
+  // rotation, since every card is exactly one viewport tall.
+  cardIndex: number;
 }
 
-export class DoomscrollView extends ItemView {
-  plugin: DoomscrollPlugin;
+export class BloomscrollView extends ItemView {
+  plugin: BloomscrollPlugin;
   containerEl: HTMLElement;
   hasRendered: boolean = false;
   currentBatch: NotePreview[] = [];
@@ -42,6 +77,7 @@ export class DoomscrollView extends ItemView {
   batchHistory: NotePreview[][] = [];
   batchHistoryCursor: number = -1;
   backButton: HTMLButtonElement | null = null;
+  bookmarkButton: HTMLButtonElement | null = null;
   private refreshStatusEl: HTMLElement | null = null;
   private isRefreshing = false;
   private pendingSettingsRefresh = false;
@@ -52,19 +88,22 @@ export class DoomscrollView extends ItemView {
   private restoredScrollTop = 0;
   private renderedSnippetCache = new Map<string, HTMLElement>();
   private renderedSimplifiedView: boolean | null = null;
+  private progressEl: HTMLElement | null = null;
+  private currentCardIndex = 0;
+  private activeCardFrame: number | null = null;
 
-  constructor(leaf: WorkspaceLeaf, plugin: DoomscrollPlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: BloomscrollPlugin) {
     super(leaf);
     this.plugin = plugin;
     this.containerEl = this.contentEl;
   }
 
   getViewType(): string {
-    return VIEW_TYPE_DOOMSCROLL;
+    return VIEW_TYPE_BLOOMSCROLL;
   }
 
   getDisplayText(): string {
-    return 'Doomscroll';
+    return 'Bloomscroll';
   }
 
   getIcon(): string {
@@ -72,7 +111,7 @@ export class DoomscrollView extends ItemView {
   }
 
   getState(): Record<string, unknown> {
-    const body = this.containerEl.querySelector('.doomscroll-body');
+    const body = this.containerEl.querySelector('.bloomscroll-body');
     const scrollTop =
       body instanceof HTMLElement ? body.scrollTop : this.restoredScrollTop;
 
@@ -83,7 +122,8 @@ export class DoomscrollView extends ItemView {
       ),
       batchHistoryCursor: this.batchHistoryCursor,
       scrollTop,
-    } satisfies DoomscrollViewState;
+      cardIndex: this.currentCardIndex,
+    } satisfies BloomscrollViewState;
   }
 
   async setState(state: unknown): Promise<void> {
@@ -104,6 +144,7 @@ export class DoomscrollView extends ItemView {
       this.batchHistory.length - 1
     );
     this.restoredScrollTop = restored.scrollTop;
+    this.currentCardIndex = restored.cardIndex;
 
     if (this.hasRendered) {
       this.renderBatch();
@@ -112,7 +153,30 @@ export class DoomscrollView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
+    this.registerFeedKeys();
     await this.render();
+  }
+
+  private registerFeedKeys(): void {
+    // Scope is torn down with the view, so these never leak into the rest of
+    // Obsidian. Each moves exactly one card, matching the snap step.
+    const step = (delta: number): boolean => {
+      if (!this.isFeedMode()) return true; // let the pane scroll normally
+      const body = this.containerEl.querySelector('.bloomscroll-body');
+      if (!(body instanceof HTMLElement) || body.clientHeight <= 0) return true;
+      body.scrollBy({ top: delta * body.clientHeight, behavior: 'smooth' });
+      return false;
+    };
+
+    const scope = this.scope;
+    if (!scope) return;
+
+    scope.register([], 'ArrowDown', () => step(1));
+    scope.register([], 'ArrowUp', () => step(-1));
+    scope.register([], 'PageDown', () => step(1));
+    scope.register([], 'PageUp', () => step(-1));
+    scope.register([], ' ', () => step(1));
+    scope.register(['Shift'], ' ', () => step(-1));
   }
 
   async refreshForCurrentSettings(): Promise<void> {
@@ -156,7 +220,7 @@ export class DoomscrollView extends ItemView {
 
       if (this.hasRendered) {
         this.renderBatch();
-        this.containerEl.querySelector('.doomscroll-body')?.scrollTo({ top: 0 });
+        this.containerEl.querySelector('.bloomscroll-body')?.scrollTo({ top: 0 });
       }
     }
 
@@ -168,22 +232,30 @@ export class DoomscrollView extends ItemView {
 
   private async render(): Promise<void> {
     this.containerEl.empty();
-    this.containerEl.addClass('doomscroll-view-container');
+    this.containerEl.addClass('bloomscroll-view-container');
+    this.applyFeedModeClass();
 
     // Header row
-    const header = this.containerEl.createDiv('doomscroll-header');
+    const header = this.containerEl.createDiv('bloomscroll-header');
+
+    // Header is a three-slot row: progress (left), title (centre), controls
+    // (right). The leading and trailing slots share a width so the title lands
+    // on the true centre rather than the midpoint of the leftover space.
+    const leading = header.createDiv('bloomscroll-header-slot');
+    this.progressEl = leading.createDiv('bloomscroll-progress');
+    this.progressEl.setAttribute('aria-live', 'polite');
 
     const title = header.createEl('h2');
-    title.textContent = 'Doomscroll';
-    title.className = 'doomscroll-title';
+    title.textContent = 'ꕤ bloomscroll';
+    title.className = 'bloomscroll-title';
 
-    this.refreshStatusEl = header.createDiv('doomscroll-refresh-status');
+    this.refreshStatusEl = leading.createDiv('bloomscroll-refresh-status');
     this.refreshStatusEl.setAttribute('aria-live', 'polite');
-    const controls = header.createDiv('doomscroll-controls');
+    const controls = header.createDiv('bloomscroll-controls bloomscroll-header-slot');
 
     // Reshuffle button (refresh icon)
     const reshuffleBtn = controls.createEl('button');
-    reshuffleBtn.className = 'doomscroll-reshuffle-btn';
+    reshuffleBtn.className = 'bloomscroll-reshuffle-btn';
     reshuffleBtn.setAttribute('aria-label', 'Reshuffle');
     setIcon(reshuffleBtn, 'refresh-cw');
     reshuffleBtn.addEventListener('click', () => {
@@ -192,7 +264,7 @@ export class DoomscrollView extends ItemView {
 
     // Previous batch button
     this.backButton = controls.createEl('button');
-    this.backButton.className = 'doomscroll-back-btn';
+    this.backButton.className = 'bloomscroll-back-btn';
     this.backButton.setAttribute('aria-label', 'Previous card set');
     setIcon(this.backButton, 'arrow-left');
     this.backButton.addEventListener('click', () => {
@@ -200,23 +272,37 @@ export class DoomscrollView extends ItemView {
     });
     this.updateBackButton();
 
+    // Bookmark button — sits between back and reshuffle in the floating cluster.
+    this.bookmarkButton = controls.createEl('button');
+    this.bookmarkButton.className = 'bloomscroll-bookmark-btn';
+    this.bookmarkButton.setAttribute('aria-label', 'Bookmark this note');
+    setIcon(this.bookmarkButton, 'bookmark');
+    this.bookmarkButton.addEventListener('click', () => {
+      this.toggleBookmarkForActiveCard();
+    });
+    this.updateBookmarkButton();
+
     // Settings button
     const settingsBtn = controls.createEl('button');
-    settingsBtn.className = 'doomscroll-settings-btn';
+    settingsBtn.className = 'bloomscroll-settings-btn';
     settingsBtn.setAttribute('aria-label', 'Settings');
     setIcon(settingsBtn, 'settings');
     settingsBtn.addEventListener('click', () => {
       const { setting } = this.plugin.app as unknown as AppWithSettings;
       setting.open();
-      setting.openTabById('doomscroll');
+      // Read the id from the manifest rather than hardcoding it — the two must
+      // match exactly, and a literal here silently stops opening the tab if the
+      // plugin id ever changes.
+      setting.openTabById(this.plugin.manifest.id);
     });
 
     // Body - scrollable container
-    const bodyContainer = this.containerEl.createDiv('doomscroll-body');
+    const bodyContainer = this.containerEl.createDiv('bloomscroll-body');
     bodyContainer.addEventListener(
       'scroll',
       () => {
         this.restoredScrollTop = bodyContainer.scrollTop;
+        this.scheduleActiveCardUpdate(bodyContainer);
       },
       { passive: true }
     );
@@ -226,7 +312,7 @@ export class DoomscrollView extends ItemView {
     // filter changes made while the plugin is running.
     const needsInitialIndex = Object.keys(this.plugin.data.previews).length === 0;
     const loadingEl = needsInitialIndex
-      ? bodyContainer.createDiv('doomscroll-loading')
+      ? bodyContainer.createDiv('bloomscroll-loading')
       : null;
     if (loadingEl) {
       loadingEl.textContent = 'Indexing your vault…';
@@ -283,10 +369,17 @@ export class DoomscrollView extends ItemView {
 
   private restoreScrollPosition(): void {
     const scrollTop = this.restoredScrollTop;
+    const cardIndex = this.currentCardIndex;
+    const feedMode = this.isFeedMode();
     const restore = (): void => {
-      const body = this.containerEl.querySelector('.doomscroll-body');
+      const body = this.containerEl.querySelector('.bloomscroll-body');
       if (body instanceof HTMLElement) {
-        body.scrollTop = scrollTop;
+        // Each feed card is exactly one viewport tall, so the index multiplied
+        // by the current height survives resize and rotation.
+        body.scrollTop =
+          feedMode && body.clientHeight > 0
+            ? cardIndex * body.clientHeight
+            : scrollTop;
       }
     };
 
@@ -355,7 +448,7 @@ export class DoomscrollView extends ItemView {
           const preview = this.currentBatch.find(
             (candidate) => candidate.path === path
           );
-          const snippetEl = card.querySelector('.doomscroll-card-snippet');
+          const snippetEl = card.querySelector('.bloomscroll-card-snippet');
           if (preview && snippetEl instanceof HTMLElement) {
             void this.renderSnippet(preview, snippetEl);
           }
@@ -376,7 +469,12 @@ export class DoomscrollView extends ItemView {
           this.scheduleHistorySave();
         }
       },
-      { root: container, threshold: 0.1 }
+      {
+        root: container,
+        threshold: this.isFeedMode()
+          ? FEED_VIEW_THRESHOLD
+          : LIST_VIEW_THRESHOLD,
+      }
     );
 
     // Clear previous content
@@ -388,17 +486,32 @@ export class DoomscrollView extends ItemView {
       this.cardObserver.observe(card);
     }
 
-    // Reshuffle button at end
+    // End-of-feed panel. In feed mode this is a full-height snap page of its
+    // own, so reaching the end is a deliberate stop rather than a stray scroll.
     const reshuffleSection = container.createDiv(
-      'doomscroll-reshuffle-section'
+      'bloomscroll-reshuffle-section'
     );
+
+    if (this.isFeedMode()) {
+      const endTitle = reshuffleSection.createEl('h3');
+      endTitle.className = 'bloomscroll-feed-end-title';
+      endTitle.textContent = "You're all caught up";
+
+      const endDesc = reshuffleSection.createDiv('bloomscroll-feed-end-desc');
+      const count = this.currentBatch.length;
+      endDesc.textContent = `${count} ${count === 1 ? 'note' : 'notes'} in this set`;
+    }
+
     const reshuffleBtn = reshuffleSection.createEl('button');
-    reshuffleBtn.className = 'doomscroll-reshuffle-end-btn';
-    reshuffleBtn.textContent = 'Reshuffle';
-    reshuffleBtn.dataset.defaultLabel = 'Reshuffle';
+    reshuffleBtn.className = 'bloomscroll-reshuffle-end-btn';
+    const label = this.isFeedMode() ? 'Refresh' : 'Reshuffle';
+    reshuffleBtn.textContent = label;
+    reshuffleBtn.dataset.defaultLabel = label;
     reshuffleBtn.addEventListener('click', () => {
       void this.showNewBatch();
     });
+
+    this.updateProgress();
   }
 
   private async showNewBatch(): Promise<void> {
@@ -430,7 +543,7 @@ export class DoomscrollView extends ItemView {
       this.renderBatch(
         settingsChanged || indexRefreshed ? undefined : previousOrder
       );
-      this.containerEl.querySelector('.doomscroll-body')?.scrollTo({ top: 0 });
+      this.resetToFirstCard();
     } catch (error) {
       console.error('Error refreshing vault index:', error);
     } finally {
@@ -455,7 +568,20 @@ export class DoomscrollView extends ItemView {
     this.batchHistoryCursor = previousCursor;
     this.currentBatch = previousBatch;
     this.renderBatch();
-    this.containerEl.querySelector('.doomscroll-body')?.scrollTo({ top: 0 });
+    this.resetToFirstCard();
+  }
+
+  private resetToFirstCard(): void {
+    this.currentCardIndex = 0;
+    this.restoredScrollTop = 0;
+    const body = this.containerEl.querySelector('.bloomscroll-body');
+    if (body instanceof HTMLElement) {
+      // 'instant' — a smooth scroll back through a whole batch would be a long
+      // animation past cards the user has already dismissed.
+      body.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
+    this.updateProgress();
+    this.updateBookmarkButton();
   }
 
   private updateBackButton(): void {
@@ -467,7 +593,7 @@ export class DoomscrollView extends ItemView {
   }
 
   private renderBatch(previousOrder?: readonly string[]): void {
-    const body = this.containerEl.querySelector('.doomscroll-body');
+    const body = this.containerEl.querySelector('.bloomscroll-body');
     if (body) {
       this.renderBatchIntoContainer(body as HTMLElement, previousOrder);
     }
@@ -503,11 +629,11 @@ export class DoomscrollView extends ItemView {
     }
 
     const buttons = this.containerEl.querySelectorAll<HTMLButtonElement>(
-      '.doomscroll-reshuffle-btn, .doomscroll-reshuffle-end-btn'
+      '.bloomscroll-reshuffle-btn, .bloomscroll-reshuffle-end-btn'
     );
     buttons.forEach((button) => {
       button.disabled = refreshing;
-      if (button.classList.contains('doomscroll-reshuffle-end-btn')) {
+      if (button.classList.contains('bloomscroll-reshuffle-end-btn')) {
         const defaultLabel = button.dataset.defaultLabel ?? 'Reshuffle';
         button.textContent = refreshing ? 'Indexing…' : defaultLabel;
       }
@@ -520,6 +646,170 @@ export class DoomscrollView extends ItemView {
     return JSON.stringify(batchSettings);
   }
 
+  private applyFeedModeClass(): void {
+    this.containerEl.toggleClass('bloomscroll-feed-mode', this.isFeedMode());
+  }
+
+  // Scroll fires far more often than the index can change, so collapse bursts
+  // into one read per frame and skip the work when the card hasn't changed.
+  private scheduleActiveCardUpdate(container: HTMLElement): void {
+    if (this.activeCardFrame !== null) return;
+    this.activeCardFrame = window.requestAnimationFrame(() => {
+      this.activeCardFrame = null;
+      this.updateActiveCard(container);
+    });
+  }
+
+  private updateActiveCard(container: HTMLElement): void {
+    const cardHeight = container.clientHeight;
+    if (cardHeight <= 0) return;
+
+    const index = Math.round(container.scrollTop / cardHeight);
+    if (index === this.currentCardIndex) return;
+
+    this.currentCardIndex = index;
+    this.updateProgress();
+    this.updateBookmarkButton();
+    this.prefetchAroundActiveCard();
+  }
+
+  // Render the next card's snippet before it scrolls into view, so the feed
+  // never shows "Loading preview…" mid-swipe.
+  private prefetchAroundActiveCard(): void {
+    if (!this.isFeedMode()) return;
+
+    const next = this.currentBatch[this.currentCardIndex + 1];
+    if (!next) return;
+
+    const card = this.containerEl.querySelector(
+      `.bloomscroll-card[data-path="${CSS.escape(next.path)}"]`
+    );
+    if (!(card instanceof HTMLElement)) return;
+
+    const snippetEl = card.querySelector('.bloomscroll-card-snippet');
+    if (snippetEl instanceof HTMLElement) {
+      void this.renderSnippet(next, snippetEl);
+    }
+  }
+
+  private updateProgress(): void {
+    if (!this.progressEl) return;
+
+    const total = this.currentBatch.length;
+    if (!this.isFeedMode() || total === 0) {
+      this.progressEl.textContent = '';
+      return;
+    }
+
+    // The end panel sits one past the last card; clamp so it reads as complete.
+    const position = Math.min(this.currentCardIndex + 1, total);
+    this.progressEl.textContent = `${position} / ${total}`;
+  }
+
+  private getBookmarksPlugin(): BookmarksPluginInstance | null {
+    const app = this.plugin.app as unknown as AppWithInternalPlugins;
+    const plugin = app.internalPlugins?.getEnabledPluginById?.('bookmarks');
+    if (!isRecord(plugin)) return null;
+
+    // Disabled, missing, or a future rename all land here rather than throwing.
+    const instance = plugin as unknown as Partial<BookmarksPluginInstance>;
+    if (
+      typeof instance.addItem !== 'function' ||
+      typeof instance.removeItem !== 'function' ||
+      typeof instance.getBookmarks !== 'function'
+    ) {
+      return null;
+    }
+
+    return instance as BookmarksPluginInstance;
+  }
+
+  // The card the user is actually looking at. In list mode there is no single
+  // active card, so this is meaningful only in feed mode.
+  private getActivePreview(): NotePreview | null {
+    return this.currentBatch[this.currentCardIndex] ?? null;
+  }
+
+  private findBookmark(
+    bookmarks: BookmarksPluginInstance,
+    path: string
+  ): BookmarkItem | null {
+    try {
+      const items = bookmarks.getBookmarks();
+      if (!Array.isArray(items)) return null;
+      return (
+        items.find(
+          (item) =>
+            isRecord(item) && item.type === 'file' && item.path === path
+        ) ?? null
+      );
+    } catch (error) {
+      console.error('Error reading bookmarks:', error);
+      return null;
+    }
+  }
+
+  private toggleBookmarkForActiveCard(): void {
+    const preview = this.getActivePreview();
+    if (!preview) return;
+
+    const bookmarks = this.getBookmarksPlugin();
+    if (!bookmarks) {
+      new Notice('The Bookmarks core plugin is not enabled.');
+      return;
+    }
+
+    try {
+      const existing = this.findBookmark(bookmarks, preview.path);
+      if (existing) {
+        bookmarks.removeItem(existing);
+        new Notice(`Removed bookmark: ${preview.title}`);
+      } else {
+        bookmarks.addItem({ type: 'file', path: preview.path });
+        new Notice(`Bookmarked: ${preview.title}`);
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      new Notice('Could not update bookmarks.');
+    }
+
+    this.updateBookmarkButton();
+  }
+
+  private updateBookmarkButton(): void {
+    const button = this.bookmarkButton;
+    if (!button) return;
+
+    // Only meaningful for a single active card, i.e. feed mode.
+    if (!this.isFeedMode()) {
+      button.hide();
+      return;
+    }
+    button.show();
+
+    const preview = this.getActivePreview();
+    const bookmarks = preview ? this.getBookmarksPlugin() : null;
+    const bookmarked =
+      preview && bookmarks
+        ? this.findBookmark(bookmarks, preview.path) !== null
+        : false;
+
+    button.disabled = !preview;
+    button.toggleClass('is-bookmarked', bookmarked);
+    // A filled icon reads as "saved" at a glance; the label carries the action.
+    setIcon(button, bookmarked ? 'bookmark-check' : 'bookmark');
+    button.setAttribute(
+      'aria-label',
+      bookmarked ? 'Remove bookmark' : 'Bookmark this note'
+    );
+    button.setAttribute('aria-pressed', String(bookmarked));
+  }
+
+  private isFeedMode(): boolean {
+    // Treat missing values from pre-setting data.json files as the default.
+    return this.plugin.data.settings.feedMode !== 'list';
+  }
+
   private isSimplifiedView(): boolean {
     // Treat missing values from pre-setting data.json files as the default.
     return this.plugin.data.settings.simplifiedView !== false;
@@ -530,8 +820,8 @@ export class DoomscrollView extends ItemView {
     renderedRoot: HTMLElement,
     simplified: boolean
   ): void {
-    snippetEl.classList.toggle('doomscroll-card-snippet-simple', simplified);
-    snippetEl.classList.toggle('doomscroll-card-snippet-markdown', !simplified);
+    snippetEl.classList.toggle('bloomscroll-card-snippet-simple', simplified);
+    snippetEl.classList.toggle('bloomscroll-card-snippet-markdown', !simplified);
     snippetEl.classList.toggle('markdown-rendered', !simplified);
 
     const clone = renderedRoot.cloneNode(true) as HTMLElement;
@@ -544,7 +834,7 @@ export class DoomscrollView extends ItemView {
 
   private cacheRenderedSnippet(key: string, renderedRoot: HTMLElement): void {
     // Map insertion order gives us a small LRU cache without retaining every
-    // file ever visited during a long-lived Doomscroll session.
+    // file ever visited during a long-lived Bloomscroll session.
     this.renderedSnippetCache.delete(key);
     this.renderedSnippetCache.set(key, renderedRoot);
     while (this.renderedSnippetCache.size > MAX_RENDERED_SNIPPET_CACHE_ENTRIES) {
@@ -558,28 +848,32 @@ export class DoomscrollView extends ItemView {
     container: HTMLElement,
     preview: NotePreview
   ): HTMLElement {
-    const card = container.createDiv('doomscroll-card');
+    const card = container.createDiv('bloomscroll-card');
     card.dataset.path = preview.path;
 
+    // Feed mode constrains the reading column on wide windows; list mode uses
+    // the card itself, so the wrapper is transparent to the existing layout.
+    const inner = card.createDiv('bloomscroll-card-inner');
+
     // Title + date row
-    const titleRow = card.createDiv('doomscroll-card-titlerow');
+    const titleRow = inner.createDiv('bloomscroll-card-titlerow');
 
     const titleEl = titleRow.createEl('h3');
-    titleEl.className = 'doomscroll-card-title';
+    titleEl.className = 'bloomscroll-card-title';
     titleEl.textContent = preview.title;
 
-    const dateEl = titleRow.createDiv('doomscroll-card-date');
+    const dateEl = titleRow.createDiv('bloomscroll-card-date');
     const date = new Date(preview.mtime);
     dateEl.textContent = date.toLocaleDateString();
 
     // Image (lazy loaded)
     if (preview.imagePath) {
-      const imageContainer = card.createDiv(
-        'doomscroll-card-image-container'
+      const imageContainer = inner.createDiv(
+        'bloomscroll-card-image-container'
       );
 
       const img = imageContainer.createEl('img');
-      img.className = 'doomscroll-card-image';
+      img.className = 'bloomscroll-card-image';
       img.dataset.src = preview.imagePath;
       img.dataset.notePath = preview.path;
       img.alt = preview.title;
@@ -589,11 +883,23 @@ export class DoomscrollView extends ItemView {
     }
 
     // Snippet is rendered on demand from a bounded Markdown fragment.
-    const snippetEl = card.createDiv('doomscroll-card-snippet');
+    const snippetEl = inner.createDiv('bloomscroll-card-snippet');
     snippetEl.textContent = 'Loading preview…';
 
-    // Click handler
-    card.addEventListener('click', () => {
+    // Click handler. In feed mode a tap that drifts is a swipe, not a click —
+    // opening the note then would fight the gesture.
+    let pointerDownX = 0;
+    let pointerDownY = 0;
+    card.addEventListener('pointerdown', (event) => {
+      pointerDownX = event.clientX;
+      pointerDownY = event.clientY;
+    });
+    card.addEventListener('click', (event) => {
+      if (this.isFeedMode()) {
+        const dx = Math.abs(event.clientX - pointerDownX);
+        const dy = Math.abs(event.clientY - pointerDownY);
+        if (dx > TAP_SLOP_PX || dy > TAP_SLOP_PX) return;
+      }
       void this.renderSnippet(preview, snippetEl);
       void this.openPreview(preview);
     });
@@ -702,7 +1008,7 @@ export class DoomscrollView extends ItemView {
                   imgEl.src = resolvedSrc;
                 } else {
                   // Couldn't resolve — hide the container instead of showing a broken icon
-                  imgEl.closest('.doomscroll-card-image-container')?.remove();
+                  imgEl.closest('.bloomscroll-card-image-container')?.remove();
                 }
               }
 
@@ -774,7 +1080,7 @@ function isMediaOnlyPreview(preview: NotePreview): boolean {
   );
 }
 
-function parseViewState(state: unknown): DoomscrollViewState | null {
+function parseViewState(state: unknown): BloomscrollViewState | null {
   if (!isRecord(state)) return null;
 
   const batchPaths = stringArray(state.batchPaths);
@@ -790,6 +1096,7 @@ function parseViewState(state: unknown): DoomscrollViewState | null {
 
   const cursor = state.batchHistoryCursor;
   const scrollTop = state.scrollTop;
+  const cardIndex = state.cardIndex;
   return {
     batchPaths,
     batchHistoryPaths,
@@ -798,6 +1105,11 @@ function parseViewState(state: unknown): DoomscrollViewState | null {
     scrollTop:
       typeof scrollTop === 'number' && Number.isFinite(scrollTop)
         ? Math.max(0, scrollTop)
+        : 0,
+    // Absent in state saved before feed mode existed.
+    cardIndex:
+      typeof cardIndex === 'number' && Number.isInteger(cardIndex)
+        ? Math.max(0, cardIndex)
         : 0,
   };
 }

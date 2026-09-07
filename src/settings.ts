@@ -1,55 +1,89 @@
 import {
-  AbstractInputSuggest,
   App,
   Notice,
   normalizePath,
   PluginSettingTab,
   Setting,
 } from 'obsidian';
-import DoomscrollPlugin from './main';
+import * as obsidian from 'obsidian';
+import BloomscrollPlugin from './main';
 import { PluginSettings } from './types';
 
-const GITHUB_URL = 'https://github.com/yaroshevych/doomscroll';
+const GITHUB_URL = 'https://github.com/yaroshevych/bloomscroll';
 const ISSUES_URL = `${GITHUB_URL}/issues`;
 
-class FolderSuggest extends AbstractInputSuggest<string> {
-  inputEl: HTMLInputElement;
-  private cachedFolders: string[] | null = null;
+// `AbstractInputSuggest` is not exported by the mobile (iOS/Android) builds of
+// Obsidian. Referencing it at module scope makes the whole plugin fail to load
+// there, so the subclass is created on demand and skipped when unavailable.
+type FolderSuggestInstance = { close(): void };
 
-  constructor(app: App, inputEl: HTMLInputElement) {
-    super(app, inputEl);
-    this.inputEl = inputEl;
+let folderSuggestCtor:
+  | (new (app: App, inputEl: HTMLInputElement) => FolderSuggestInstance)
+  | null
+  | undefined;
+
+function getFolderSuggestCtor() {
+  if (folderSuggestCtor !== undefined) return folderSuggestCtor;
+
+  const Base = (
+    obsidian as unknown as {
+      AbstractInputSuggest?: new (app: App, inputEl: HTMLInputElement) => object;
+    }
+  ).AbstractInputSuggest;
+
+  if (typeof Base !== 'function') {
+    folderSuggestCtor = null;
+    return folderSuggestCtor;
   }
 
-  private getFolders(): string[] {
-    if (this.cachedFolders) return this.cachedFolders;
+  folderSuggestCtor = class FolderSuggest extends (Base as new (
+    app: App,
+    inputEl: HTMLInputElement
+  ) => {
+    app: App;
+    close(): void;
+  }) {
+    inputEl: HTMLInputElement;
+    private cachedFolders: string[] | null = null;
 
-    this.cachedFolders = this.app.vault
-      .getAllFolders()
-      .map((folder) => folder.path)
-      .filter((path) => path.length > 0);
-    return this.cachedFolders;
-  }
+    constructor(app: App, inputEl: HTMLInputElement) {
+      super(app, inputEl);
+      this.inputEl = inputEl;
+    }
 
-  getSuggestions(inputStr: string): string[] {
-    const lowerInput = inputStr.toLowerCase();
-    return this.getFolders().filter((path) =>
-      path.toLowerCase().includes(lowerInput)
-    );
-  }
+    private getFolders(): string[] {
+      if (this.cachedFolders) return this.cachedFolders;
 
-  renderSuggestion(path: string, el: HTMLElement): void {
-    el.setText(path);
-  }
+      this.cachedFolders = this.app.vault
+        .getAllFolders()
+        .map((folder) => folder.path)
+        .filter((path) => path.length > 0);
+      return this.cachedFolders;
+    }
 
-  selectSuggestion(path: string): void {
-    this.inputEl.value = path;
-    this.close();
-  }
+    getSuggestions(inputStr: string): string[] {
+      const lowerInput = inputStr.toLowerCase();
+      return this.getFolders().filter((path) =>
+        path.toLowerCase().includes(lowerInput)
+      );
+    }
+
+    renderSuggestion(path: string, el: HTMLElement): void {
+      el.setText(path);
+    }
+
+    selectSuggestion(path: string): void {
+      this.inputEl.value = path;
+      this.close();
+    }
+  };
+
+  return folderSuggestCtor;
 }
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   batchSize: 20,
+  feedMode: 'feed',
   includeMediaOnlyNotes: true,
   simplifiedView: true,
   openNoteBehavior: 'tab',
@@ -59,10 +93,10 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   frontmatterImageProps: ['cover', 'image', 'banner'],
 };
 
-export class DoomscrollSettingTab extends PluginSettingTab {
-  plugin: DoomscrollPlugin;
+export class BloomscrollSettingTab extends PluginSettingTab {
+  plugin: BloomscrollPlugin;
 
-  constructor(app: App, plugin: DoomscrollPlugin) {
+  constructor(app: App, plugin: BloomscrollPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -72,6 +106,25 @@ export class DoomscrollSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     configureHeader(new Setting(containerEl));
+
+    new Setting(containerEl)
+      .setName('Feed mode')
+      .setDesc(
+        'Feed shows one note at a time, filling the screen; list scrolls through all cards continuously.'
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions({
+            feed: 'Feed (one at a time)',
+            list: 'List (continuous scroll)',
+          })
+          .setValue(this.plugin.data.settings.feedMode === 'list' ? 'list' : 'feed')
+          .onChange(async (value) => {
+            if (value !== 'feed' && value !== 'list') return;
+            this.plugin.data.settings.feedMode = value;
+            await this.plugin.saveSettingsAndRefreshViews();
+          })
+      );
 
     new Setting(containerEl)
       .setName('Batch size')
@@ -173,7 +226,7 @@ export class DoomscrollSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName('Excluded folders').setHeading();
 
     const excludedFoldersList = containerEl.createDiv(
-      'doomscroll-excluded-folders-list'
+      'bloomscroll-excluded-folders-list'
     );
     this.renderExcludedFolders(excludedFoldersList);
 
@@ -184,7 +237,10 @@ export class DoomscrollSettingTab extends PluginSettingTab {
       .addText((text) => {
         text.setPlaceholder('4. Archive');
         folderInputEl = text.inputEl;
-        new FolderSuggest(this.app, folderInputEl);
+        const FolderSuggestCtor = getFolderSuggestCtor();
+        if (FolderSuggestCtor) {
+          new FolderSuggestCtor(this.app, folderInputEl);
+        }
       })
       .addButton((button) =>
         button.setButtonText('Add').onClick(async () => {
@@ -215,12 +271,12 @@ export class DoomscrollSettingTab extends PluginSettingTab {
     }
 
     for (const folder of this.plugin.data.settings.excludeFolders) {
-      const row = container.createDiv('doomscroll-excluded-folder-item');
+      const row = container.createDiv('bloomscroll-excluded-folder-item');
       row.createSpan({ text: folder });
       row
         .createEl('button', {
           text: '×',
-          cls: 'doomscroll-excluded-folder-remove',
+          cls: 'bloomscroll-excluded-folder-remove',
           attr: { 'aria-label': `Remove excluded folder ${folder}` },
         })
         .addEventListener('click', async () => {
@@ -237,8 +293,8 @@ export class DoomscrollSettingTab extends PluginSettingTab {
 
 function configureHeader(setting: Setting): void {
   setting
-    .setClass('doomscroll-settings-header')
-    .setName('Doomscroll settings')
+    .setClass('bloomscroll-settings-header')
+    .setName('Bloomscroll settings')
     .setHeading()
     .addButton((button) =>
       button.setButtonText('GitHub').onClick(() => {

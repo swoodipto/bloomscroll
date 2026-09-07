@@ -1,9 +1,9 @@
 {
-  "id": "doomscroll",
-  "name": "Doomscroll",
-  "version": "0.1.5",
+  "id": "bloomscroll-dev",
+  "name": "Bloomscroll",
+  "version": "0.1.5-alpha.1",
   "minAppVersion": "1.7.2",
-  "description": "Doomscroll your own notes, not someone else's feed.",
+  "description": "Bloomscroll your own notes, not someone else’s feed.",
   "author": "yaroshevych",
   "authorUrl": "https://github.com/yaroshevych",
   "isDesktopOnly": false

@@ -1,7 +1,12 @@
 export type OpenNoteBehavior = 'tab' | 'reuse' | 'window';
 
+// 'feed' is the one-card-at-a-time snap feed; 'list' is the original
+// continuously scrolling card list.
+export type FeedMode = 'feed' | 'list';
+
 export interface PluginSettings {
   batchSize: number;
+  feedMode: FeedMode;
   includeMediaOnlyNotes: boolean;
   simplifiedView: boolean;
   openNoteBehavior: OpenNoteBehavior;

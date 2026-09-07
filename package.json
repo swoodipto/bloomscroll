@@ -1,7 +1,7 @@
 {
-  "name": "doomscroll",
-  "version": "0.1.5",
-  "description": "Doomscroll your own notes, not someone else's feed.",
+  "name": "bloomscroll",
+  "version": "0.1.5-alpha.1",
+  "description": "Bloomscroll your own notes, not someone else's feed.",
   "main": "main.js",
   "type": "module",
   "scripts": {

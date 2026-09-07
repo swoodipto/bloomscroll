@@ -1,12 +1,16 @@
 import { Plugin, normalizePath } from 'obsidian';
 import { PluginData, StoredNotePreview } from './types';
-import { DEFAULT_SETTINGS, DoomscrollSettingTab } from './settings';
+import { DEFAULT_SETTINGS, BloomscrollSettingTab } from './settings';
 import { Indexer } from './indexer';
-import { DoomscrollView, VIEW_TYPE_DOOMSCROLL } from './view';
+import {
+  BloomscrollView,
+  VIEW_TYPE_BLOOMSCROLL,
+  VIEW_TYPE_LEGACY,
+} from './view';
 
 const INDEX_FORMAT_VERSION = 2;
 
-export default class DoomscrollPlugin extends Plugin {
+export default class BloomscrollPlugin extends Plugin {
   data!: PluginData;
   indexer!: Indexer;
   private settingsRefreshTimer: number | null = null;
@@ -108,8 +112,14 @@ export default class DoomscrollPlugin extends Plugin {
 
     // Register view
     this.registerView(
-      VIEW_TYPE_DOOMSCROLL,
-      (leaf) => new DoomscrollView(leaf, this)
+      VIEW_TYPE_BLOOMSCROLL,
+      (leaf) => new BloomscrollView(leaf, this)
+    );
+    // Keep the pre-rename type resolvable so a workspace layout saved under the
+    // old name reopens instead of showing "No view of type doomscroll-view".
+    this.registerView(
+      VIEW_TYPE_LEGACY,
+      (leaf) => new BloomscrollView(leaf, this)
     );
 
     // Ribbon icon
@@ -117,7 +127,7 @@ export default class DoomscrollPlugin extends Plugin {
       void this.activateView();
     });
 
-    // Command to open Doomscroll
+    // Command to open Bloomscroll
     this.addCommand({
       id: 'open-feed',
       name: 'Open feed',
@@ -127,19 +137,19 @@ export default class DoomscrollPlugin extends Plugin {
     });
 
     // Settings tab
-    this.addSettingTab(new DoomscrollSettingTab(this.app, this));
+    this.addSettingTab(new BloomscrollSettingTab(this.app, this));
   }
 
   async activateView(): Promise<void> {
     // Try to reuse existing leaf
-    const existingLeaf = this.app.workspace.getLeavesOfType(
-      VIEW_TYPE_DOOMSCROLL
-    )[0];
+    const existingLeaf =
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_BLOOMSCROLL)[0] ??
+      this.app.workspace.getLeavesOfType(VIEW_TYPE_LEGACY)[0];
 
     if (existingLeaf) {
       await this.app.workspace.revealLeaf(existingLeaf);
       const view = existingLeaf.view;
-      if (view instanceof DoomscrollView) {
+      if (view instanceof BloomscrollView) {
         await view.refreshForCurrentSettings();
       }
       return;
@@ -148,7 +158,7 @@ export default class DoomscrollPlugin extends Plugin {
     // Create new leaf in main workspace
     const leaf = this.app.workspace.getLeaf('tab');
     await leaf.setViewState({
-      type: VIEW_TYPE_DOOMSCROLL,
+      type: VIEW_TYPE_BLOOMSCROLL,
       active: true,
     });
     await this.app.workspace.revealLeaf(leaf);
@@ -171,9 +181,10 @@ export default class DoomscrollPlugin extends Plugin {
     this.settingsRefreshTimer = window.setTimeout(() => {
       this.settingsRefreshTimer = null;
       const views = this.app.workspace
-        .getLeavesOfType(VIEW_TYPE_DOOMSCROLL)
+        .getLeavesOfType(VIEW_TYPE_BLOOMSCROLL)
+        .concat(this.app.workspace.getLeavesOfType(VIEW_TYPE_LEGACY))
         .map((leaf) => leaf.view)
-        .filter((view): view is DoomscrollView => view instanceof DoomscrollView);
+        .filter((view): view is BloomscrollView => view instanceof BloomscrollView);
 
       void Promise.all(views.map((view) => view.refreshForCurrentSettings()));
     }, 250);
