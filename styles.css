@@ -27,11 +27,9 @@
   white-space: nowrap;
   font-size: 1.5rem;
   font-weight: 600;
-  /* The header floats over the feed, so the title carries its own frosted
-     ground to stay legible against whatever card is passing beneath. */
+  /* The header floats over the feed, so the title carries its own ground to
+     stay legible against whatever card is passing beneath. */
   background: color-mix(in srgb, var(--background-secondary) 80%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   padding: 6px 18px;
   border-radius: var(--radius-xl);
 }
@@ -400,7 +398,7 @@
 .bloomscroll-card-inner {
   max-width: 400px !important;
   height: 500px !important;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='roughpaper' x='0%25' y='0%25' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.07' result='noise' numOctaves='5' /%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='0.8'%3E%3CfeDistantLight azimuth='65' elevation='78' /%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect x='0' y='0' width='100%25' height='100%25' filter='url(%23roughpaper)' fill='none'/%3E%3C/svg%3E") repeat;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='roughpaper' x='0%25' y='0%25' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.08' result='noise' numOctaves='5' /%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='0.4'%3E%3CfeDistantLight azimuth='65' elevation='70' /%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect x='0' y='0' width='100%25' height='100%25' filter='url(%23roughpaper)' fill='none'/%3E%3C/svg%3E") repeat;
   background-attachment: local;
   padding: 1rem;
   border-radius: var(--radius-s);
@@ -492,7 +490,13 @@
   padding: 2px 8px;
   border-radius: var(--radius-l);
   color: var(--text-accent);
-  background: hsla(var(--interactive-accent-hsl), 0.15);
+  /* Like the title, the pill needs its own ground to stay legible over a
+     passing card. */
+  background: color-mix(
+    in srgb,
+    hsla(var(--interactive-accent-hsl), 0.15) 80%,
+    transparent
+  );
 }
 
 /* ---------------------------------------------------------------------------
@@ -548,8 +552,12 @@ button.bloomscroll-bookmark-btn.is-bookmarked {
 }
 
 button.bloomscroll-back-btn:disabled {
-  opacity: 0.2;
-  background: var(--text-faint);
+  /* Overrides the 0.35 on the earlier `.bloomscroll-back-btn:disabled` rule,
+     which otherwise faded the pill on top of its translucent ground. The muted
+     state comes from the ground and icon colour instead. */
+  opacity: 1;
+  background: color-mix(in srgb, var(--background-modifier-border) 70%, #ffffff00);
+  color: var(--text-faint);
   box-shadow: none;
 }
 
