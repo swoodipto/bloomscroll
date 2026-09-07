@@ -1,3 +1,3 @@
 # ꕤ bloomscroll
 
-~~doom~~scroll and grow into your best self.
+~~doom~~scroll for your digital garden.
