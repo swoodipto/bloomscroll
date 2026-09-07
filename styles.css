@@ -27,9 +27,11 @@
   white-space: nowrap;
   font-size: 1.5rem;
   font-weight: 600;
-  /* The header floats over the feed, so the title carries its own ground to
-     stay legible against whatever card is passing beneath. */
+  /* The header floats over the feed, so the title carries its own frosted
+     ground to stay legible against whatever card is passing beneath. */
   background: color-mix(in srgb, var(--background-secondary) 80%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   padding: 6px 18px;
   border-radius: var(--radius-xl);
 }
@@ -490,13 +492,15 @@
   padding: 2px 8px;
   border-radius: var(--radius-l);
   color: var(--text-accent);
-  /* Like the title, the pill needs its own ground to stay legible over a
-     passing card. */
+  /* Like the title, the pill carries its own frosted ground to stay legible
+     over a passing card. */
   background: color-mix(
     in srgb,
     hsla(var(--interactive-accent-hsl), 0.15) 80%,
     transparent
   );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* ---------------------------------------------------------------------------
