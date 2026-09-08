@@ -395,15 +395,26 @@
   border: 0;
 }
 
+/* Obsidian sets .is-mobile on <body> in the mobile app. Unlike a width
+   breakpoint this tracks the actual platform, so a narrow desktop pane keeps
+   the desktop layout. The bottom padding follows the app's navbar and keyboard
+   variables so the sheet clears whatever chrome is currently showing. */
+.is-mobile .bloomscroll-feed-mode .bloomscroll-card {
+  padding-top: calc(4.6rem + env(safe-area-inset-top));
+  padding-bottom: calc(var(--navbar-height) + var(--navbar-bottom-offset) + calc(var(--keyboard-height) + 14px) + env(safe-area-inset-bottom));
+}
+
 /* Paper-sheet card: a fixed-size sheet centred on the surface, with a generated
    fibrous noise texture rather than an image asset. */
 .bloomscroll-card-inner {
-  max-width: 400px !important;
-  height: 500px !important;
+  max-width: 608px !important;
+  max-height: 900px !important;
+  width: 100% !important;
+  height: 100% !important;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='roughpaper' x='0%25' y='0%25' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.08' result='noise' numOctaves='5' /%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='0.4'%3E%3CfeDistantLight azimuth='65' elevation='70' /%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect x='0' y='0' width='100%25' height='100%25' filter='url(%23roughpaper)' fill='none'/%3E%3C/svg%3E") repeat;
   background-attachment: local;
   padding: 1rem;
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-m);
   box-shadow: 0 0 0 1px #00000008,
               0 2px 8px -2px #0000001c,
               0 6px 24px -6px #00000012;
@@ -422,9 +433,7 @@
   min-height: 0;
   max-height: 100%;
   box-sizing: border-box;
-  /* Lift the sheet off dead centre so it sits higher in the viewport, clear of
-     the floating controls at the bottom. */
-  margin-top: -20px;
+  margin-top: 0;
 }
 
 .bloomscroll-feed-mode .bloomscroll-card-title {
@@ -535,6 +544,14 @@ button.bloomscroll-bookmark-btn {
 button.bloomscroll-back-btn {
   left: 50%;
   margin-left: calc(-1.6rem - 4rem);
+}
+
+/* Track the mobile app's own navbar and keyboard rather than guessing a fixed
+   offset, so the controls stay clear when either changes height. */
+.is-mobile button.bloomscroll-reshuffle-btn,
+.is-mobile button.bloomscroll-back-btn,
+.is-mobile button.bloomscroll-bookmark-btn {
+  bottom: calc(var(--navbar-height) + var(--navbar-bottom-offset) + calc(var(--keyboard-height) + 32px) + env(safe-area-inset-bottom));
 }
 
 button.bloomscroll-bookmark-btn {
