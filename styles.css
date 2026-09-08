@@ -87,11 +87,13 @@
   background-color: var(--background-modifier-hover);
 }
 
-/* The shared rule above already declares `background: transparent`, but a theme
-   styling bare `button` elements outranks it. Matching the extra `button` and
-   `:not(.clickable-icon)` raises specificity enough to win it back. */
+/* Matches the title and progress pills: the header floats over the feed, so the
+   button carries its own frosted ground. The extra `button` and
+   `:not(.clickable-icon)` raise specificity past a theme styling bare buttons. */
 button:not(.clickable-icon).bloomscroll-settings-btn {
-  background: transparent;
+  background: color-mix(in srgb, var(--color-base-25) 80%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .bloomscroll-back-btn:disabled {
@@ -400,6 +402,12 @@ button:not(.clickable-icon).bloomscroll-settings-btn {
   padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
   background: var(--color-base-25);
   border: 0;
+}
+
+/* Desktop only. Scoped to `body:not(.is-mobile)` rather than added to the rule
+   above, so the mobile override below does not have to undo it. */
+body:not(.is-mobile) .bloomscroll-feed-mode .bloomscroll-card {
+  padding-top: calc(1.5rem + 48px);
 }
 
 /* Obsidian sets .is-mobile on <body> in the mobile app. Unlike a width
