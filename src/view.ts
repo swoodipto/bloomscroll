@@ -929,12 +929,13 @@ export class BloomscrollView extends ItemView {
     try {
       const content = await this.plugin.app.vault.cachedRead(file);
       const markdown = preparePreviewMarkdown(content);
-      const rendered = document.createElement('div');
+      const rendered = createDiv();
       const renderComponent = new Component();
       renderComponent.load();
       let prepared: HTMLElement;
       try {
-        await MarkdownRenderer.renderMarkdown(
+        await MarkdownRenderer.render(
+          this.plugin.app,
           markdown,
           rendered,
           file.path,

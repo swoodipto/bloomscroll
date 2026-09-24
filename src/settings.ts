@@ -279,12 +279,15 @@ export class BloomscrollSettingTab extends PluginSettingTab {
           cls: 'bloomscroll-excluded-folder-remove',
           attr: { 'aria-label': `Remove excluded folder ${folder}` },
         })
-        .addEventListener('click', async () => {
-          const index = this.plugin.data.settings.excludeFolders.indexOf(folder);
-          if (index === -1) return;
-          this.plugin.data.settings.excludeFolders.splice(index, 1);
-          await this.plugin.saveSettingsAndRefreshViews();
-          this.renderExcludedFolders(container);
+        .addEventListener('click', () => {
+          void (async () => {
+            const index =
+              this.plugin.data.settings.excludeFolders.indexOf(folder);
+            if (index === -1) return;
+            this.plugin.data.settings.excludeFolders.splice(index, 1);
+            await this.plugin.saveSettingsAndRefreshViews();
+            this.renderExcludedFolders(container);
+          })();
         });
     }
   }
