@@ -1,7 +1,7 @@
 {
   "id": "bloomscroll",
   "name": "bloomscroll",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "minAppVersion": "1.7.2",
   "description": "Rediscover your notes one at a time, in a paper-card feed you can scroll.",
   "author": "Sudipto",
