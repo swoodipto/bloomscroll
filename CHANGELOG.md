@@ -55,12 +55,23 @@ Forked from upstream `91aad23` ("Release 0.1.5").
   Deliberately left as-is: the upstream clone URL and image asset in `README.md`,
   and the historical references in this changelog.
 
-- **Version set to `0.1.5-alpha.1`** in `manifest.json`, `package.json`,
+- **Version set to `0.2.0`** in `manifest.json`, `package.json`,
   `package-lock.json`, and `versions.json`. Upstream's `0.1.5` was still in
   place despite the fork having diverged substantially, so the two builds were
-  indistinguishable by version alone. The semver prerelease form is used rather
-  than a bare "alpha-1" because Obsidian parses the manifest version, and a
-  prerelease sorts *below* the `0.1.5` it derives from.
+  indistinguishable by version alone.
+
+  It briefly carried `0.1.5-alpha.1`, which was wrong on both counts: a
+  prerelease suffix sorts *below* the `0.1.5` it derives from, while this fork
+  is well ahead of it, and an `alpha` label only earns its keep when shipping to
+  testers who need the instability signalled. `0.2.0` says it plainly — a second
+  minor line, clearly past upstream's `0.1.x`, with `0.x` already conveying that
+  things will still change.
+
+  `1.0.0` is deliberately held back. Every note currently renders as text
+  regardless of what it is; videos, books, and images need cards of their own,
+  and that changes what a card fundamentally *is* rather than adding a feature
+  on top. Declaring 1.0 before that would mean breaking the "this is the shape I
+  intend to keep" promise almost immediately.
 
 - **Rebranded to Bloomscroll** in `manifest.json`:
   - `id`: `doomscroll` → `bloomscroll-dev`

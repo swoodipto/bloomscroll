@@ -1,7 +1,7 @@
 {
   "id": "bloomscroll-dev",
   "name": "Bloomscroll",
-  "version": "0.1.5-alpha.1",
+  "version": "0.2.0",
   "minAppVersion": "1.7.2",
   "description": "Bloomscroll your own notes, not someone else’s feed.",
   "author": "yaroshevych",
