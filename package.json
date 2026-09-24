@@ -9,7 +9,7 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
   },
   "keywords": [],
-  "author": "yaroshevych",
+  "author": "Sudipto",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.15.17",

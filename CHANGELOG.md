@@ -87,8 +87,12 @@ Forked from upstream `91aad23` ("Release 0.1.5").
   `bloomscroll`, and the local install was renamed to match (its `data.json`
   moved with the folder).
 
-  `author` / `authorUrl` still credit yaroshevych, which is correct attribution
-  for a fork.
+  `author` / `authorUrl` initially still credited yaroshevych. That was right
+  while this was a private fork, but wrong to ship publicly: the plugin listing
+  would name someone else as its author and point at their profile. They are now
+  `Sudipto` / `github.com/swoodipto`, with credit for the original engine carried
+  in the README and the LICENSE instead — where it reads as attribution rather
+  than authorship.
 
 ### Added
 
