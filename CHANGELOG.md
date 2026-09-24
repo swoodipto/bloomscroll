@@ -74,12 +74,18 @@ Forked from upstream `91aad23` ("Release 0.1.5").
   intend to keep" promise almost immediately.
 
 - **Rebranded to Bloomscroll** in `manifest.json`:
-  - `id`: `doomscroll` → `bloomscroll-dev`
+  - `id`: `doomscroll` → `bloomscroll`
   - `name`: `Doomscroll` → `Bloomscroll`
   - `description`: reworded to match the new name
 
-  The `-dev` suffix on the id matches the vault folder this is installed into.
-  Obsidian requires the plugin folder name and manifest `id` to be identical.
+  The id passed through `bloomscroll-dev` first, chosen only to match the local
+  vault folder it was installed into — Obsidian requires the plugin folder name
+  and manifest `id` to be identical. Once the README gained real install
+  instructions aimed at other people, the `-dev` suffix became wrong to ship:
+  anyone cloning into `.obsidian/plugins/bloomscroll` as instructed would get a
+  plugin that never appears in the community plugins list. The id is now plain
+  `bloomscroll`, and the local install was renamed to match (its `data.json`
+  moved with the folder).
 
   `author` / `authorUrl` still credit yaroshevych, which is correct attribution
   for a fork.
