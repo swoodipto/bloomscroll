@@ -3,7 +3,7 @@
   "name": "Bloomscroll",
   "version": "0.2.0",
   "minAppVersion": "1.7.2",
-  "description": "Bloomscroll your own notes, not someone else’s feed.",
+  "description": "Rediscover your notes one at a time, in a paper-card feed you can scroll.",
   "author": "Sudipto",
   "authorUrl": "https://github.com/swoodipto",
   "isDesktopOnly": false

@@ -1,7 +1,7 @@
 {
   "name": "bloomscroll",
   "version": "0.2.0",
-  "description": "Bloomscroll your own notes, not someone else's feed.",
+  "description": "Rediscover your notes one at a time, in a paper-card feed you can scroll.",
   "main": "main.js",
   "type": "module",
   "scripts": {
