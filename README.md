@@ -11,7 +11,7 @@ hence ꕤ bloomscroll was born. its the same brain underneath by @yaroshevych, b
 - noice interface, with little paper texture and polished details
 - bookmark notes from the scroll feed to get back to later
 - switch between list view (as in the original plugin) and "bloomscroll" view that replicates the doomscroll experience
-- all features from [the original plugin](https://github.com/yaroshevych/doomscroll#features)
+- all features from [the original plugin](https://github.com/yaroshevych/doomscroll#features), as of its [0.1.5 release](https://github.com/yaroshevych/doomscroll/releases/tag/0.1.5) — anything doomscroll shipped after that isn't here yet
 
 ## planned
 
